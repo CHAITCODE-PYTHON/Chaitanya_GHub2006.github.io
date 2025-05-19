@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Neon Pomodoro Timer</title>
+  <style>
+    :root {
+      --primary: #9d7aff;
+      --secondary: #6a3dff;
+      --text: #ffffff;
+      --card: rgba(25, 15, 45, 0.7);
+      --shadow: rgba(0, 0, 0, 0.4);
+      --success: #00ff9d;
+      --start-color: #00ff9d;
+      --pause-color: #ff6b6b;
+      --reset-color: #ffb464;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    .futuristic-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      background: radial-gradient(
+          ellipse at center,
+          rgba(255, 140, 200, 0.2) 0%,
+          rgba(255, 180, 100, 0.15) 30%,
+          rgba(120, 90, 255, 0.25) 60%,
+          rgba(15, 5, 35, 1) 100%
+        ),
+        linear-gradient(135deg, #12052a 0%, #0a0318 100%);
+      animation: colorPulse 20s infinite alternate;
+    }
+
+    .grid-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: linear-gradient(
+          rgba(157, 122, 255, 0.08) 1px,
+          transparent 1px
+        ),
+        linear-gradient(90deg, rgba(157, 122, 255, 0.08) 1px, transparent 1px);
+      background-size: 60px 60px;
+      opacity: 0.4;
+    }
+
+    .particles {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .particle {
+      position: absolute;
+      border-radius: 50%;
+      animation: float linear infinite;
+    }
+
+    .particle.dust {
+      background: rgba(255, 255, 255, 0.4);
+      filter: blur(0.5px);
+    }
+
+    .particle.star {
+      background: white;
+      box-shadow: 0 0 5px 1px rgba(255, 255, 255, 0.8);
+      filter: blur(0.3px);
+    }
+
+    @keyframes float {
+      0% {
+        transform: translateY(0) translateX(0);
+        opacity: 0;
+      }
+      20% {
+        opacity: 1;
+      }
+      90% {
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(-120vh)
+          translateX(calc(var(--random-x) * 100px));
+        opacity: 0;
+      }
+    }
+
+    @keyframes colorPulse {
+      0%,
+      100% {
+        background-color: rgba(15, 5, 35, 0.95);
+      }
+      50% {
+        background-color: rgba(25, 10, 50, 0.95);
+      }
+    }
+
+    .glow-effect {
+      position: absolute;
+      width: 200%;
+      height: 200%;
+      top: -50%;
+      left: -50%;
+      background: radial-gradient(
+        ellipse at center,
+        rgba(255, 140, 200, 0.25) 0%,
+        rgba(255, 180, 100, 0.2) 30%,
+        transparent 70%
+      );
+      animation: rotate 80s linear infinite;
+      z-index: -1;
+      opacity: 0.7;
+    }
+
+    @keyframes rotate {
+      from {
+        transform: rotate(0deg);
+      }
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .container {
+      width: 100%;
+      max-width: 500px;
+      text-align: center;
+      background: var(--card);
+      backdrop-filter: blur(12px);
+      border-radius: 24px;
+      padding: 2.5rem;
+      box-shadow: 0 12px 40px var(--shadow);
+      border: 1px solid rgba(157, 122, 255, 0.25);
+      z-index: 1;
+    }
+
+    h1 {
+      font-weight: 600;
+      margin-bottom: 2.5rem;
+      font-size: 2.2rem;
+      background: linear-gradient(90deg, #ff8cc8, #ffb464);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      letter-spacing: 0.5px;
+    }
+
+    .timer-container {
+      position: relative;
+      width: 320px;
+      height: 320px;
+      margin: 0 auto 2.5rem;
+    }
+
+    .timer-circle {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    .timer-background {
+      fill: none;
+      stroke: var(--secondary);
+      stroke-width: 10;
+      opacity: 0.25;
+    }
+
+    .timer-progress {
+      fill: none;
+      stroke: var(--primary);
+      stroke-width: 10;
+      stroke-linecap: round;
+      transform: rotate(-90deg);
+      transform-origin: 50% 50%;
+      transition: stroke-dashoffset 0.1s linear;
+    }
+
+    .timer-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 4rem;
+      font-weight: 300;
+      color: white;
+      text-shadow: 0 0 15px rgba(157, 122, 255, 0.6);
+    }
+
+    .timer-mode {
+      margin-bottom: 1.5rem;
+      font-size: 1.3rem;
+      font-weight: 500;
+      color: var(--primary);
+      letter-spacing: 1px;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 1.2rem;
+      margin-bottom: 2rem;
+    }
+
+    button {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 50px;
+      padding: 1rem 1.8rem;
+      font-size: 1.1rem;
+      font-weight: 500;
+      cursor: pointer;
+      box-shadow: 0 5px 20px rgba(157, 122, 255, 0.4);
+      transition: all 0.3s ease;
+      letter-spacing: 0.5px;
+    }
+
+    button:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 25px rgba(157, 122, 255, 0.5);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .reset-btn {
+      background-color: transparent;
+      color: var(--primary);
+      border: 2px solid var(--primary);
+    }
+
+    .notification {
+      position: fixed;
+      bottom: -100px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #0a0318;
+      padding: 1.2rem 2.5rem;
+      border-radius: 50px;
+      font-weight: 600;
+      box-shadow: 0 5px 25px rgba(0, 0, 0, 0.4);
+      opacity: 0;
+      transition: all 0.4s ease;
+      z-index: 100;
+      backdrop-filter: blur(5px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .notification.start {
+      background-color: var(--start-color);
+      box-shadow: 0 5px 25px rgba(0, 255, 157, 0.4);
+    }
+
+    .notification.pause {
+      background-color: var(--pause-color);
+      box-shadow: 0 5px 25px rgba(255, 107, 107, 0.4);
+    }
+
+    .notification.reset {
+      background-color: var(--reset-color);
+      box-shadow: 0 5px 25px rgba(255, 180, 100, 0.4);
+    }
+
+    .notification.show {
+      bottom: 40px;
+      opacity: 1;
+    }
+
+    .task-input-container {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .task-input {
+      flex: 1;
+      background: rgba(157, 122, 255, 0.15);
+      border: 1px solid rgba(157, 122, 255, 0.3);
+      border-radius: 50px;
+      padding: 0.8rem 1.5rem;
+      color: white;
+      font-size: 1rem;
+      outline: none;
+      transition: all 0.3s ease;
+    }
+
+    .task-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(157, 122, 255, 0.2);
+    }
+
+    .save-task-btn {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 50px;
+      padding: 0 1.5rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      box-shadow: 0 3px 15px rgba(157, 122, 255, 0.3);
+      transition: all 0.3s ease;
+    }
+
+    .save-task-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(157, 122, 255, 0.4);
+    }
+
+    .tasks-container {
+      width: 100%;
+      max-height: 200px;
+      overflow-y: auto;
+      margin-top: 1rem;
+      padding: 0.5rem;
+    }
+
+    .task-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.8rem 1rem;
+      margin-bottom: 0.5rem;
+      background: rgba(157, 122, 255, 0.1);
+      border-radius: 8px;
+      border-left: 3px solid var(--primary);
+      animation: fadeIn 0.3s ease;
+    }
+
+    .task-text {
+      flex: 1;
+      word-break: break-word;
+    }
+
+    .remove-task-btn {
+      background: none;
+      border: none;
+      color: #ff6b6b;
+      cursor: pointer;
+      font-size: 1rem;
+      margin-left: 0.5rem;
+      transition: transform 0.2s ease;
+    }
+
+    .remove-task-btn:hover {
+      transform: scale(1.2);
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .info-section {
+      width: 80%;
+      max-width: 800px;
+      background: rgba(15, 5, 35, 0.85);
+      border-radius: 16px;
+      margin: 2rem auto;
+      padding: 2.5rem;
+      color: white;
+      border: 1px solid rgba(157, 122, 255, 0.3);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .info-content {
+      font-size: 1.05rem;
+      line-height: 1.7;
+    }
+
+    .info-content h2 {
+      color: var(--primary);
+      margin: 1.5rem 0 0.8rem;
+      font-size: 1.4rem;
+    }
+
+    .info-content h3 {
+      color: var(--success);
+      margin: 1.2rem 0 0.5rem;
+      font-size: 1.2rem;
+    }
+
+    .info-content p {
+      margin-bottom: 1.2rem;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin: 2rem 0;
+    }
+
+    .feature-list {
+      list-style-type: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .feature-list li {
+      margin-bottom: 0.8rem;
+      display: flex;
+      align-items: flex-start;
+    }
+
+    .feature-list li::before {
+      content: "•";
+      color: var(--success);
+      font-weight: bold;
+      margin-right: 0.5rem;
+    }
+
+    .cta-box {
+      background: rgba(0, 255, 157, 0.15);
+      border: 1px solid var(--success);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: center;
+      margin-top: 2rem;
+    }
+
+    #startCta {
+      background: var(--success);
+      font-weight: bold;
+      margin: 0.5rem 0;
+      width: 100%;
+    }
+
+    blockquote {
+      border-left: 3px solid var(--primary);
+      padding-left: 1rem;
+      margin: 2rem 0;
+      font-style: italic;
+    }
+
+    cite {
+      display: block;
+      margin-top: 0.5rem;
+      font-style: normal;
+      font-size: 0.9rem;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    @media (max-width: 768px) {
+      .info-section {
+        width: 90%;
+        padding: 2rem;
+      }
+      
+      .feature-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 500px) {
+      .timer-container {
+        width: 280px;
+        height: 280px;
+      }
+
+      .timer-text {
+        font-size: 3.5rem;
+      }
+
+      button {
+        padding: 0.9rem 1.5rem;
+        font-size: 1rem;
+      }
+
+      .container {
+        padding: 2rem;
+      }
+
+      h1 {
+        font-size: 2rem;
+      }
+
+      .task-input {
+        padding: 0.7rem 1.2rem;
+        font-size: 0.9rem;
+      }
+
+      .save-task-btn {
+        padding: 0 1.2rem;
+        font-size: 0.8rem;
+      }
+
+      .info-section {
+        width: 95%;
+        padding: 1.5rem;
+      }
+      
+      .info-content {
+        font-size: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="futuristic-bg">
+    <div class="grid-overlay"></div>
+    <div class="glow-effect"></div>
+    <div class="particles" id="particles"></div>
+  </div>
+
+  <div class="container">
+    <h1>Pomodoro Timer</h1>
+
+    <div class="task-input-container">
+      <input
+        type="text"
+        class="task-input"
+        id="taskInput"
+        placeholder="What are you focusing on?"
+        maxlength="100"
+      />
+      <button class="save-task-btn" id="saveTaskBtn">Save Task</button>
+    </div>
+
+    <div class="timer-mode" id="mode">Focus</div>
+
+    <div class="timer-container">
+      <svg class="timer-circle" viewBox="0 0 100 100">
+        <circle class="timer-background" cx="50" cy="50" r="45"></circle>
+        <circle class="timer-progress" cx="50" cy="50" r="45"></circle>
+      </svg>
+      <div class="timer-text" id="time">25:00</div>
+    </div>
+
+    <div class="controls">
+      <button id="startBtn">Start</button>
+      <button id="pauseBtn" disabled>Pause</button>
+      <button class="reset-btn" id="resetBtn">Reset</button>
+    </div>
+
+    <div class="tasks-container" id="tasksContainer"></div>
+  </div>
+
+  <section class="info-section">
+    <div class="info-content">
+      <h2>From Burnout to Flow State in 25 Minutes</h2>
+      <p>Welcome to your personal focus zone. This Pomodoro Timer is designed to help you stay productive by breaking your work into focused, manageable intervals.</p>
+
+      <div class="feature-grid">
+        <div>
+          <h3>How It Works</h3>
+          <ul class="feature-list">
+            <li>25-minute focus sprints</li>
+            <li>5-minute short breaks</li>
+            <li>15-30 minute long breaks</li>
+            <li>Zero distractions during focus</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Key Benefits</h3>
+          <ul class="feature-list">
+            <li>2X productivity boost</li>
+            <li>Prevents mental fatigue</li>
+            <li>Better time awareness</li>
+            <li>Measurable progress</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Why Top Performers Swear By This Method</h3>
+      <p>Created by Francesco Cirillo, the Pomodoro Technique divides work into 25-minute sessions separated by short breaks. Named after the tomato-shaped kitchen timer Cirillo used, it's a proven way to stay sharp and avoid burnout.</p>
+
+      <blockquote>
+        "This timer helped me complete my thesis defense preparation in half the expected time!"
+        <cite>— Sarah J., Computer Science Graduate</cite>
+      </blockquote>
+
+      <div class="cta-box">
+        <button id="startCta">🚀 Start Your First Pomodoro Now</button>
+        <small>Trusted by 750,000+ professionals worldwide</small>
+      </div>
+    </div>
+  </section>
+
+  <div class="notification" id="notification">Time for a break!</div>
+
+  <audio
+    id="alertSound"
+    src="https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3"
+    preload="auto"
+  ></audio>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      
+      const STORAGE_KEY = "pomodoroTasks_v2";
+      
+      function loadTasks() {
+        try {
+          const stored = localStorage.getItem(STORAGE_KEY);
+          if (!stored) return [];
+          
+          const parsed = JSON.parse(stored);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+          console.error("Storage load failed:", e);
+          return [];
+        }
+      }
+
+      function saveTasks(tasks) {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+          return true;
+        } catch (e) {
+          console.error("Storage save failed:", e);
+          return false;
+        }
+      }
+
+    
+      let tasks = loadTasks();
+      const taskInput = document.getElementById("taskInput");
+      const saveTaskBtn = document.getElementById("saveTaskBtn");
+      const tasksContainer = document.getElementById("tasksContainer");
+      
+      function renderTasks() {
+        tasksContainer.innerHTML = "";
+        
+        tasks.forEach((task, index) => {
+          const taskElement = document.createElement("div");
+          taskElement.className = "task-item";
+          taskElement.innerHTML = `
+            <span class="task-text">${task}</span>
+            <button class="remove-task-btn" data-index="${index}">❌</button>
+          `;
+          tasksContainer.appendChild(taskElement);
+        });
+
+        
+        document.querySelectorAll(".remove-task-btn").forEach(btn => {
+          btn.addEventListener("click", () => {
+            removeTask(parseInt(btn.dataset.index));
+          });
+        });
+      }
+
+      function addTask(text) {
+        if (!text.trim()) return false;
+        
+        tasks.push(text.trim());
+        if (!saveTasks(tasks)) {
+          tasks.pop(); 
+          return false;
+        }
+        
+        renderTasks();
+        return true;
+      }
+
+      function removeTask(index) {
+        if (index < 0 || index >= tasks.length) return false;
+        
+        const removed = tasks.splice(index, 1);
+        if (!saveTasks(tasks)) {
+          tasks.splice(index, 0, removed[0]); 
+          return false;
+        }
+        
+        renderTasks();
+        return true;
+      }
+
+    
+      renderTasks();
+
+      
+      saveTaskBtn.addEventListener("click", () => {
+        if (addTask(taskInput.value)) {
+          taskInput.value = "";
+        } else {
+          alert("Failed to save task. Try a different browser.");
+        }
+      });
+
+      taskInput.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") saveTaskBtn.click();
+      });
+
+      
+      const startBtn = document.getElementById("startBtn");
+      const pauseBtn = document.getElementById("pauseBtn");
+      const resetBtn = document.getElementById("resetBtn");
+      const timeDisplay = document.getElementById("time");
+      const modeDisplay = document.getElementById("mode");
+      const notification = document.getElementById("notification");
+      const alertSound = document.getElementById("alertSound");
+      const progressCircle = document.querySelector(".timer-progress");
+      const startCta = document.getElementById("startCta");
+
+      let timer;
+      let isRunning = false;
+      let isFocus = true;
+      let timeLeft;
+      const focusTime = 25 * 60;
+      const breakTime = 5 * 60;
+      let totalTime = focusTime;
+      const circumference = 2 * Math.PI * 45;
+
+      
+      resetTimer();
+
+      function startTimer() {
+        if (!isRunning) {
+          isRunning = true;
+          startBtn.disabled = true;
+          pauseBtn.disabled = false;
+
+          timer = setInterval(() => {
+            timeLeft--;
+            updateDisplay();
+
+            if (timeLeft <= 0) {
+              clearInterval(timer);
+              timerComplete();
+            }
+          }, 1000);
+        }
+      }
+
+      function pauseTimer() {
+        if (isRunning) {
+          clearInterval(timer);
+          isRunning = false;
+          startBtn.disabled = false;
+          pauseBtn.disabled = true;
+        }
+      }
+
+      function resetTimer() {
+        clearInterval(timer);
+        isRunning = false;
+        timeLeft = isFocus ? focusTime : breakTime;
+        totalTime = timeLeft;
+        updateDisplay();
+        startBtn.disabled = false;
+        pauseBtn.disabled = true;
+      }
+
+      function timerComplete() {
+        isRunning = false;
+        alertSound.play();
+        showNotification(isFocus ? "Time for a break!" : "Time to focus!");
+
+        isFocus = !isFocus;
+        modeDisplay.textContent = isFocus ? "Focus" : "Break";
+        timeLeft = isFocus ? focusTime : breakTime;
+        totalTime = timeLeft;
+
+        if (isFocus) {
+          updateDisplay();
+          startBtn.disabled = false;
+          pauseBtn.disabled = true;
+        } else {
+          updateDisplay();
+          setTimeout(startTimer, 2000);
+        }
+      }
+
+      function updateDisplay() {
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        timeDisplay.textContent = `${minutes
+          .toString()
+          .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+
+        const offset = circumference - (timeLeft / totalTime) * circumference;
+        progressCircle.style.strokeDasharray = `${circumference} ${circumference}`;
+        progressCircle.style.strokeDashoffset = offset;
+      }
+
+      function showNotification(message, type) {
+        notification.classList.remove("start", "pause", "reset");
+        notification.classList.add(type);
+        notification.textContent = message;
+        notification.classList.add("show");
+
+        setTimeout(() => {
+          notification.classList.remove("show");
+        }, 5000);
+      }
+
+      
+      startBtn.addEventListener("click", () => {
+        startTimer();
+        showNotification("You're about to own this session", "start");
+      });
+
+      pauseBtn.addEventListener("click", () => {
+        pauseTimer();
+        showNotification("Session paused - ready when you are", "pause");
+      });
+
+      resetBtn.addEventListener("click", () => {
+        resetTimer();
+        showNotification("Timer reset - fresh start!", "reset");
+      });
+
+      startCta.addEventListener("click", () => {
+        startTimer();
+        showNotification("Let's crush this session!", "start");
+      });
+
+      
+      const particlesContainer = document.getElementById("particles");
+      const createParticles = () => {
+        const particleCount = window.innerWidth < 768 ? 40 : 80;
+
+        for (let i = 0; i < particleCount; i++) {
+          const particle = document.createElement("div");
+          const isStar = Math.random() > 0.7;
+          particle.classList.add("particle", isStar ? "star" : "dust");
+
+          const size = isStar
+            ? Math.random() * 1.5 + 0.5
+            : Math.random() * 2 + 1;
+          const posX = Math.random() * 100;
+          const posY = Math.random() * 100 + 100;
+          const duration = Math.random() * 30 + 20;
+          const delay = Math.random() * 15;
+          const randomX = (Math.random() - 0.5) * 1.5;
+
+          particle.style.width = `${size}px`;
+          particle.style.height = `${size}px`;
+          particle.style.left = `${posX}%`;
+          particle.style.top = `${posY}%`;
+          particle.style.animationDuration = `${duration}s`;
+          particle.style.animationDelay = `${delay}s`
+          particle.style.setProperty("--random-x", randomX);
+
+          particlesContainer.appendChild(particle);
+        }
+      };
+
+      createParticles();
+    });
+  </script>
+</body>
+</html>
